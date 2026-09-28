@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>EduGenie - AI Learning Assistant</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <header>
+            <h1>🎓 EduGenie</h1>
+            <p>Google Gemini Powered Learning Assistant</p>
+        </header>
+
+        <div class="card">
+
+            <label for="task">Choose a Learning Task</label>
+
+            <select id="task">
+                <option value="qa">Ask a Question</option>
+                <option value="explain">Explain a Concept</option>
+                <option value="quiz">Generate Quiz</option>
+                <option value="summarize">Summarize</option>
+                <option value="learn">Recommend Learning Path</option>
+            </select>
+
+
+            <label for="inputText">Enter your topic or text</label>
+
+            <textarea
+                id="inputText"
+                placeholder="Example: Explain Pythagoras theorem..."
+            ></textarea>
+
+
+            <div class="buttons">
+
+                <button id="generateBtn" onclick="generateResult()">
+                    Generate
+                </button>
+
+                <button class="clear-btn" onclick="clearResult()">
+                    Clear
+                </button>
+
+            </div>
+
+
+            <div id="status"></div>
+
+            <div id="result" class="result"></div>
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+        async function generateResult() {
+
+            const task = document.getElementById("task").value;
+            const text = document.getElementById("inputText").value.trim();
+
+            const resultBox = document.getElementById("result");
+            const status = document.getElementById("status");
+
+            if (!text) {
+
+                resultBox.innerHTML =
+                    "<p class='error'>Please enter a topic or text.</p>";
+
+                return;
+            }
+
+
+            status.innerText = "⏳ Generating response...";
+            resultBox.innerHTML = "";
+
+
+            let endpoint = "";
+
+            if (task === "qa") {
+                endpoint = "/qa";
+            }
+
+            else if (task === "explain") {
+                endpoint = "/explain";
+            }
+
+            else if (task === "quiz") {
+                endpoint = "/quiz";
+            }
+
+            else if (task === "summarize") {
+                endpoint = "/summarize";
+            }
+
+            else if (task === "learn") {
+                endpoint = "/learn/recommendations";
+            }
+
+
+            try {
+
+                const response = await fetch(endpoint, {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        text: text
+                    })
+
+                });
+
+
+                const data = await response.json();
+
+                status.innerText = "";
+
+                if (task === "quiz") {
+
+                    displayQuiz(data.result);
+
+                } else {
+
+                    displayText(data.result);
+
+                }
+
+            }
+
+            catch (error) {
+
+                status.innerText = "";
+
+                resultBox.innerHTML =
+                    `<p class="error">
+                        Something went wrong. Please try again.
+                    </p>`;
+
+                console.error(error);
+            }
+        }
+
+
+        function displayText(text) {
+
+            const resultBox = document.getElementById("result");
+
+            resultBox.innerHTML = `
+                <h2>Result</h2>
+                <div class="answer">
+                    ${formatText(text)}
+                </div>
+            `;
+        }
+
+
+        function formatText(text) {
+
+            if (!text) {
+                return "No response received.";
+            }
+
+            return text
+                .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                .replace(/\n/g, "<br>");
+        }
+
+
+        function displayQuiz(quiz) {
+
+            const resultBox = document.getElementById("result");
+
+            if (!Array.isArray(quiz)) {
+
+                resultBox.innerHTML = `
+                    <p class="error">
+                        ${quiz?.error || "Unable to generate quiz."}
+                    </p>
+                `;
+
+                return;
+            }
+
+
+            let html = "<h2>📝 Quiz</h2>";
+
+
+            quiz.forEach((item, index) => {
+
+                html += `
+                    <div class="quiz-question">
+
+                        <h3>
+                            ${index + 1}. ${item.question}
+                        </h3>
+
+                `;
+
+
+                item.options.forEach(option => {
+
+                    const safeOption =
+                        option.replace(/'/g, "\\'");
+
+                    html += `
+                        <button
+                            class="option"
+                            onclick="checkAnswer(
+                                this,
+                                '${safeOption}',
+                                '${item.correct_answer.replace(/'/g, "\\'")}'
+                            )"
+                        >
+                            ${option}
+                        </button>
+                    `;
+
+                });
+
+
+                html += `
+                    <p class="feedback"></p>
+                    </div>
+                `;
+
+            });
+
+
+            resultBox.innerHTML = html;
+        }
+
+
+        function checkAnswer(button, selected, correct) {
+
+            const questionBox =
+                button.parentElement;
+
+            const feedback =
+                questionBox.querySelector(".feedback");
+
+            const options =
+                questionBox.querySelectorAll(".option");
+
+
+            options.forEach(option => {
+                option.disabled = true;
+            });
+
+
+            if (selected === correct) {
+
+                button.classList.add("correct");
+
+                feedback.innerText =
+                    "✅ Correct answer!";
+
+            }
+
+            else {
+
+                button.classList.add("wrong");
+
+                feedback.innerText =
+                    `❌ Wrong answer. Correct answer: ${correct}`;
+
+                options.forEach(option => {
+
+                    if (option.innerText.trim() === correct) {
+                        option.classList.add("correct");
+                    }
+
+                });
+
+            }
+        }
+
+
+        function clearResult() {
+
+            document.getElementById("inputText").value = "";
+
+            document.getElementById("result").innerHTML = "";
+
+            document.getElementById("status").innerText = "";
+        }
+
+    </script>
+
+</body>
+
+</html>
